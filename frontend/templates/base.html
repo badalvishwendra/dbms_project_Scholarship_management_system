@@ -2,24 +2,24 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}ScholarSphere{% endblock %}</title>
+  <title>{% block title %}Scholarship Management System{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
   <aside class="sidebar">
-    <a class="brand" href="{{ url_for('dashboard') }}"><span>✦</span> ScholarSphere</a>
-    <p class="side-label">MANAGEMENT</p>
+    <a class="brand" href="{{ url_for('dashboard') }}"><span>SMS</span> Scholarship<br><em>Management System</em></a>
+    <p class="side-label">MAIN MENU</p>
     <nav>
-      <a href="{{ url_for('dashboard') }}">▦ <span>Dashboard</span></a>
-      <a href="{{ url_for('students') }}">♙ <span>Students</span></a>
-      <a href="{{ url_for('scholarships') }}">◈ <span>Scholarships</span></a>
-      <a href="{{ url_for('applications') }}">▤ <span>Applications</span></a>
-      <a href="{{ url_for('disbursements') }}">₹ <span>Disbursements</span></a>
+      <a href="{{ url_for('dashboard') }}"><span>Dashboard</span></a>
+      <a href="{{ url_for('students') }}"><span>Students</span></a>
+      <a href="{{ url_for('scholarships') }}"><span>Scholarships</span></a>
+      <a href="{{ url_for('applications') }}"><span>Applications</span></a>
+      <a href="{{ url_for('disbursements') }}"><span>Disbursements</span></a>
     </nav>
-    <div class="sidebar-note"><b>DBMS College Project</b><br>Flask + SQLite<br><small>Four related tables • CRUD</small></div>
+    <div class="sidebar-note"><b>Academic project</b><br><small>Flask · SQLite database</small></div>
   </aside>
   <main>
-    <header><div><p class="eyebrow">SCHOLARSHIP MANAGEMENT</p><h1>{% block heading %}Dashboard{% endblock %}</h1></div><div class="avatar">AD</div></header>
+    <header><div><p class="eyebrow">ADMINISTRATION PANEL</p><h1>{% block heading %}Dashboard{% endblock %}</h1></div><div class="admin-label">Administrator</div></header>
     {% with messages = get_flashed_messages(with_categories=true) %}{% for type, message in messages %}<div class="flash {{ type }}">{{ message }}</div>{% endfor %}{% endwith %}
     {% block content %}{% endblock %}
   </main>
