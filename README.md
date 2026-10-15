@@ -14,7 +14,7 @@ A simple, explainable **DBMS college project** that manages students, scholarshi
 ## Project structure
 
 ```
-backend/    Flask routes and database helper
+backend/    FastAPI routes and database helper
 db/         SQL schema and demo data
 frontend/   HTML templates and dashboard styling
 scripts/    Utility scripts
@@ -30,7 +30,7 @@ pip install -r requirements.txt
 python run.py
 ```
 
-Open http://127.0.0.1:5000. The database is created and populated with safe demo data automatically on first run.
+Open http://127.0.0.1:8000. The database is created and populated with safe demo data automatically on first run.
 
 ## Database schema
 

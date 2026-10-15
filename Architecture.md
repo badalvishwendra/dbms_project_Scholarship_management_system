@@ -2,8 +2,8 @@
 
 ## Technology
 
-- **Frontend:** HTML/CSS templates rendered by Flask.
-- **Backend:** Python Flask routes handle forms and use parameterized SQL queries.
+- **Frontend:** HTML/CSS templates rendered by FastAPI Jinja2 templates (and optional static dashboard for Vercel).
+- **Backend:** Python FastAPI routes handle forms and REST endpoints using parameterized SQL queries.
 - **Database:** SQLite, stored locally at `storage/scholarships.db` after the first run.
 
 ## Entity relationships

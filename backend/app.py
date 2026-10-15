@@ -128,3 +128,45 @@ def add_disbursement(application_id: int = Form(), payment_date: str = Form(), t
         db.execute("UPDATE applications SET status='Approved' WHERE application_id=?", (application_id,))
         db.commit()
     return RedirectResponse("/disbursements", status_code=303)
+
+
+class ASGI2Adapter:
+    def __init__(self, asgi_app, scope):
+        self.asgi_app = asgi_app
+        self.scope = scope
+
+    async def __call__(self, receive, send):
+        await self.asgi_app(self.scope, receive, send)
+
+
+class UniversalApp:
+    """Universal callable supporting ASGI3 (Uvicorn), ASGI2, and WSGI (Gunicorn sync worker)."""
+
+    def __init__(self, asgi_app):
+        self.asgi_app = asgi_app
+        self._wsgi_app = None
+        initialise_database()
+
+    @property
+    def wsgi_app(self):
+        if self._wsgi_app is None:
+            from a2wsgi import ASGIMiddleware
+            self._wsgi_app = ASGIMiddleware(self.asgi_app)
+        return self._wsgi_app
+
+    def __call__(self, *args, **kwargs):
+        if len(args) == 1:
+            return ASGI2Adapter(self.asgi_app, args[0])
+        elif len(args) == 2:
+            return self.wsgi_app(*args, **kwargs)
+        elif len(args) == 3:
+            return self.asgi_app(*args, **kwargs)
+        raise TypeError(f"UniversalApp expected 1, 2, or 3 arguments, got {len(args)}")
+
+    def __getattr__(self, name):
+        return getattr(self.asgi_app, name)
+
+
+fastapi_app = app
+app = UniversalApp(fastapi_app)
+
