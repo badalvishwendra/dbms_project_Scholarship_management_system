@@ -1,6 +1,7 @@
 __pycache__/
 *.py[cod]
 .venv/
+.env
 instance/
 storage/*.db
 .DS_Store

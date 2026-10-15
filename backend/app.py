@@ -1,13 +1,13 @@
 """FastAPI backend for the Scholarship Management System."""
 from contextlib import closing
 from pathlib import Path
-import sqlite3
+import logging
 from fastapi import FastAPI, Form, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from backend.database import get_db, initialise_database
+from backend.database import IntegrityError, get_db, initialise_database
 
 ROOT = Path(__file__).resolve().parent.parent
 fastapi_app = FastAPI(title="Scholarship Management System", version="1.0.0")
@@ -28,7 +28,10 @@ templates.env.globals["get_flashed_messages"] = lambda **_kwargs: []
 
 @fastapi_app.on_event("startup")
 def startup() -> None:
-    initialise_database()
+    try:
+        initialise_database()
+    except Exception as exc:
+        logging.getLogger("uvicorn.error").warning("MySQL startup initialization deferred: %s", exc)
 
 
 def page(request: Request, name: str, **context):
@@ -90,7 +93,7 @@ def add_student(student_name: str = Form(), aadhaar_no: str = Form(), institute:
             db.execute("INSERT INTO students (student_name,aadhaar_no,institute,course,income) VALUES (?,?,?,?,?)",
                        (student_name.strip(), aadhaar_no.strip(), institute.strip(), course.strip(), income))
             db.commit()
-        except sqlite3.IntegrityError:
+        except IntegrityError:
             pass
     return RedirectResponse("/students", status_code=303)
 
@@ -139,7 +142,7 @@ def add_application(student_id: int = Form(), scholarship_id: int = Form(), appl
             db.execute("INSERT INTO applications (student_id,scholarship_id,apply_date,status) VALUES (?,?,?,'Pending')",
                        (student_id, scholarship_id, apply_date.strip()))
             db.commit()
-        except sqlite3.IntegrityError:
+        except IntegrityError:
             pass
     return RedirectResponse("/applications", status_code=303)
 
@@ -174,7 +177,7 @@ def add_disbursement(application_id: int = Form(), payment_date: str = Form(), t
             db.execute("INSERT INTO disbursements (application_id,payment_date,status,transaction_ref) VALUES (?,?,'Paid',?)",
                        (application_id, payment_date.strip(), transaction_ref.strip()))
             db.commit()
-        except sqlite3.IntegrityError:
+        except IntegrityError:
             pass
     return RedirectResponse("/disbursements", status_code=303)
 
@@ -242,7 +245,7 @@ async def api_add_student(request: Request):
             )
             db.commit()
             new_id = cursor.lastrowid
-        except sqlite3.IntegrityError as err:
+        except IntegrityError as err:
             raise HTTPException(status_code=400, detail=f"Database constraint error: {err}")
 
     return {"success": True, "message": "Student registered successfully", "student_id": new_id}
@@ -496,7 +499,10 @@ class UniversalApp:
     def __init__(self, asgi_app):
         self.asgi_app = asgi_app
         self._wsgi_app = None
-        initialise_database()
+        try:
+            initialise_database()
+        except Exception as exc:
+            logging.getLogger("uvicorn.error").warning("MySQL auto-initialization deferred on app creation: %s", exc)
 
     @property
     def wsgi_app(self):

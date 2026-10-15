@@ -2,7 +2,7 @@
 
 A comprehensive, explainable **DBMS College Project** implementing a multi-institution Scholarship Management System. The project manages students, scholarship programmes, application workflows, and financial disbursements while strictly enforcing relational integrity, normalization (3NF/BCNF), and parameterized queries.
 
-Built with **FastAPI**, **SQLite**, and dual client support: a Single Page Application for **Vercel** and server-rendered administration templates for **Render** / local hosting.
+Built with **FastAPI**, **MySQL (InnoDB)**, and dual client support: a Single Page Application for **Vercel** and server-rendered administration templates for **Render** / local hosting.
 
 ---
 
@@ -14,7 +14,7 @@ Built with **FastAPI**, **SQLite**, and dual client support: a Single Page Appli
 - **Application Workflow**: Submit student applications, review submissions, and make decisions with inline **Approve**, **Reject**, or **Reset** actions.
 - **Disbursements Register**: Track financial grants, verify bank transaction references (`TXN-...`), and ensure payments are only processed for approved awards.
 - **Institute Portal**: Institutional performance tracking with enrollment counts, application success rates, and total grant funds awarded per academic institute.
-- **DBMS Constraints**: Primary keys, foreign keys (`PRAGMA foreign_keys = ON`), composite uniqueness (`UNIQUE(student_id, scholarship_id)`), and domain `CHECK` rules.
+- **DBMS Constraints**: Primary keys with `AUTO_INCREMENT`, InnoDB foreign keys with cascade rules, composite uniqueness (`UNIQUE(student_id, scholarship_id)`), and domain `CHECK` rules.
 
 ---
 
@@ -23,9 +23,9 @@ Built with **FastAPI**, **SQLite**, and dual client support: a Single Page Appli
 ```
 backend/
 ├── app.py             # FastAPI REST endpoints & Jinja route handlers
-└── database.py        # SQLite connection helper & schema initializer
+└── database.py        # MySQL connection wrapper, auto-initializer & schema manager
 db/
-├── schema.sql         # DDL tables, foreign keys, CHECK constraints
+├── schema.sql         # MySQL DDL tables, InnoDB foreign keys, CHECK constraints
 └── seed.sql           # Safe initial demonstration data
 frontend/              # Server-rendered administrative interface
 ├── static/style.css   # Clean stylesheet for local admin
@@ -36,16 +36,30 @@ frontend-vercel/       # Client-side SPA for Vercel deployment
 ├── style.css          # Responsive design & corporate academic theme
 └── config.js          # API URL configuration (local / production)
 scripts/
-└── reset_database.py  # Reset storage/scholarships.db
-storage/
-└── scholarships.db    # SQLite database generated automatically
+└── reset_database.py  # Reset MySQL database tables & reload demo seed data
+.env.example           # MySQL credentials & environment configuration template
 ```
 
 ---
 
 ## Run Locally
 
-### 1. Start the FastAPI Backend
+### 1. Configure MySQL Database
+Ensure MySQL is running on your machine or cloud provider. Create your local environment configuration:
+```bash
+cp .env.example .env
+```
+Edit `.env` with your MySQL credentials:
+```env
+MYSQL_HOST=localhost
+MYSQL_PORT=3306
+MYSQL_USER=root
+MYSQL_PASSWORD=your_mysql_password
+MYSQL_DATABASE=scholarship_db
+```
+*(The system automatically creates `scholarship_db`, executes the schema, and populates initial demo seed records on first launch).*
+
+### 2. Start the FastAPI Backend
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
@@ -54,7 +68,7 @@ python run.py
 ```
 Backend runs at: **http://127.0.0.1:8000** (interactive API docs available at `http://127.0.0.1:8000/docs`).
 
-### 2. View the Vercel Frontend Locally
+### 3. View the Vercel Frontend Locally
 ```bash
 python3 -m http.server 3000 --directory frontend-vercel
 ```
