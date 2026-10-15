@@ -1,4 +1,38 @@
 {% extends 'base.html' %}{% block heading %}Applications{% endblock %}{% block content %}
-<section class="page-intro"><p class="eyebrow">APPLICATION WORKFLOW</p><h2>Review submissions</h2><p>Each student can apply to a scholarship only once.</p></section>
-<section class="form-panel"><h3>New application</h3><form method="post" class="form-grid"><select name="student_id" required><option value="">Select student</option>{% for s in students %}<option value="{{ s.student_id }}">{{ s.student_name }}</option>{% endfor %}</select><select name="scholarship_id" required><option value="">Select scholarship</option>{% for sc in scholarships %}<option value="{{ sc.scholarship_id }}">{{ sc.scholarship_name }}</option>{% endfor %}</select><input name="apply_date" type="date" required><button>Submit application</button></form></section>
-<section class="panel"><div class="table-wrap"><table><thead><tr><th>Application</th><th>Student</th><th>Scholarship</th><th>Amount</th><th>Decision</th></tr></thead><tbody>{% for app in applications %}<tr><td>#{{ app.application_id }}<br><small>{{ app.apply_date }}</small></td><td><b>{{ app.student_name }}</b></td><td>{{ app.scholarship_name }}</td><td>₹{{ '{:,.0f}'.format(app.amount) }}</td><td><form class="status-form" method="post" action="{{ url_for('change_status', application_id=app.application_id) }}"><select name="status"><option {% if app.status=='Pending' %}selected{% endif %}>Pending</option><option {% if app.status=='Approved' %}selected{% endif %}>Approved</option><option {% if app.status=='Rejected' %}selected{% endif %}>Rejected</option></select><button>Save</button></form></td></tr>{% endfor %}</tbody></table></div></section>{% endblock %}
+<section class="page-intro" style="display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:12px;">
+  <div><p class="eyebrow">APPLICATION WORKFLOW</p><h2>Review submissions</h2><p>Each student can apply to a scholarship only once.</p></div>
+  <form method="get" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+    <select name="status" onchange="this.form.submit()" style="padding:8px 12px; font-size:13px;">
+      <option value="all">All Statuses</option>
+      <option value="Pending" {% if selected_status == 'Pending' %}selected{% endif %}>Pending</option>
+      <option value="Approved" {% if selected_status == 'Approved' %}selected{% endif %}>Approved</option>
+      <option value="Rejected" {% if selected_status == 'Rejected' %}selected{% endif %}>Rejected</option>
+    </select>
+    <select name="institute" onchange="this.form.submit()" style="padding:8px 12px; font-size:13px;">
+      <option value="all">All Institutes</option>
+      {% for inst in institutes %}
+      <option value="{{ inst }}" {% if selected_institute == inst %}selected{% endif %}>{{ inst }}</option>
+      {% endfor %}
+    </select>
+  </form>
+</section>
+<section class="form-panel">
+  <h3>New application</h3>
+  <form method="post" class="form-grid">
+    <select name="student_id" required>
+      <option value="">Select student</option>
+      {% for s in students %}
+      <option value="{{ s.student_id }}">{{ s.student_name }} ({{ s.institute }})</option>
+      {% endfor %}
+    </select>
+    <select name="scholarship_id" required>
+      <option value="">Select scholarship</option>
+      {% for sc in scholarships %}
+      <option value="{{ sc.scholarship_id }}">{{ sc.scholarship_name }} (₹{{ '{:,.0f}'.format(sc.amount) }})</option>
+      {% endfor %}
+    </select>
+    <input name="apply_date" type="date" required>
+    <button>Submit application</button>
+  </form>
+</section>
+<section class="panel"><div class="table-wrap"><table><thead><tr><th>Application</th><th>Student & Institute</th><th>Scholarship</th><th>Amount</th><th>Decision</th></tr></thead><tbody>{% for app in applications %}<tr><td>#{{ app.application_id }}<br><small>{{ app.apply_date }}</small></td><td><b>{{ app.student_name }}</b><br><small>{{ app.institute }}</small></td><td>{{ app.scholarship_name }}</td><td>₹{{ '{:,.0f}'.format(app.amount) }}</td><td><form class="status-form" method="post" action="{{ url_for('change_status', application_id=app.application_id) }}"><select name="status"><option {% if app.status=='Pending' %}selected{% endif %}>Pending</option><option {% if app.status=='Approved' %}selected{% endif %}>Approved</option><option {% if app.status=='Rejected' %}selected{% endif %}>Rejected</option></select><button>Save</button></form></td></tr>{% else %}<tr><td colspan="5" style="text-align:center; color:var(--muted); padding:24px;">No applications match the selected criteria.</td></tr>{% endfor %}</tbody></table></div></section>{% endblock %}

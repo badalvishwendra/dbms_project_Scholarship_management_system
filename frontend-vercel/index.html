@@ -3,17 +3,394 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Scholarship Management System dashboard">
+  <meta name="description" content="Scholarship Management System for Academic Institutes">
   <title>Scholarship Management System</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <aside><div class="brand"><b>SMS</b> Scholarship<br><span>Management System</span></div><p>MAIN MENU</p><nav><a class="selected">Dashboard</a><a href="#students">Students</a><a href="#scholarships">Scholarships</a><a href="#applications">Applications</a><a href="#payments">Disbursements</a></nav><footer>Academic Project<br><small>FastAPI · SQLite database</small></footer></aside>
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Sidebar Navigation -->
+  <aside>
+    <div class="brand">
+      <b>SMS</b> Scholarship<br>
+      <span>Management System</span>
+    </div>
+    <p>MAIN MENU</p>
+    <nav id="sidebar-nav">
+      <a href="#dashboard" class="nav-item selected" data-tab="dashboard">Dashboard</a>
+      <a href="#students" class="nav-item" data-tab="students">Students</a>
+      <a href="#scholarships" class="nav-item" data-tab="scholarships">Scholarships</a>
+      <a href="#applications" class="nav-item" data-tab="applications">Applications</a>
+      <a href="#disbursements" class="nav-item" data-tab="disbursements">Disbursements</a>
+      <a href="#institutes" class="nav-item" data-tab="institutes">Institutes</a>
+    </nav>
+    <footer>
+      Academic Project<br>
+      <small>FastAPI · SQLite database</small>
+    </footer>
+  </aside>
+
+  <!-- Main Content Area -->
   <main>
-    <header><div><p>ADMINISTRATION PANEL</p><h1>Overview</h1></div><span>Administrator</span></header>
-    <section class="summary"><div><p>SYSTEM OVERVIEW</p><h2>Scholarship administration summary</h2><small>Monitor student records, applications, approvals and payment information from a single place.</small></div><div class="api-status" id="api-status">Connecting to service…</div></section>
-    <section class="statistics"><article><p>Total students</p><strong id="students">—</strong><small>Registered applicants</small></article><article><p>Scholarships</p><strong id="scholarships">—</strong><small>Available schemes</small></article><article><p>Applications</p><strong id="applications">—</strong><small>Submitted records</small></article><article><p>Payments recorded</p><strong id="paid">—</strong><small>Completed disbursements</small></article></section>
-    <section class="grid"><article class="card"><div class="card-title"><div><p>LATEST ACTIVITY</p><h2>Recent applications</h2></div><a href="https://github.com/badalvishwendra/dbms_project_cholarship_management_system">Source code</a></div><div class="table-wrap"><table><thead><tr><th>Student</th><th>Scholarship</th><th>Amount</th><th>Status</th></tr></thead><tbody id="recent"><tr><td colspan="4">Loading application data…</td></tr></tbody></table></div></article><article class="card"><p>APPLICATION STATUS</p><h2>Current application distribution</h2><div id="status-list"></div><div class="notice">Applications must be approved before a disbursement can be recorded.</div></article></section>
-  </main><script src="config.js"></script><script src="app.js"></script>
+    <header>
+      <div>
+        <p id="page-eyebrow">ADMINISTRATION PANEL</p>
+        <h1 id="page-title">Overview</h1>
+      </div>
+      <div class="header-right">
+        <span class="admin-badge">Institute Administrator</span>
+      </div>
+    </header>
+
+    <!-- TAB 1: DASHBOARD -->
+    <section id="view-dashboard" class="tab-view active">
+      <div class="summary">
+        <div>
+          <p>SYSTEM OVERVIEW</p>
+          <h2>Scholarship administration summary</h2>
+          <small>Monitor student records, applications, approvals and payment information from a single place.</small>
+        </div>
+        <div class="api-status" id="api-status">Connecting to service…</div>
+      </div>
+
+      <div class="statistics">
+        <article class="stat-card" data-goto="students">
+          <p>Total students</p>
+          <strong id="dash-students">—</strong>
+          <small>Registered applicants →</small>
+        </article>
+        <article class="stat-card" data-goto="scholarships">
+          <p>Scholarships</p>
+          <strong id="dash-scholarships">—</strong>
+          <small>Available schemes →</small>
+        </article>
+        <article class="stat-card" data-goto="applications">
+          <p>Applications</p>
+          <strong id="dash-applications">—</strong>
+          <small>Submitted records →</small>
+        </article>
+        <article class="stat-card" data-goto="disbursements">
+          <p>Payments recorded</p>
+          <strong id="dash-paid">—</strong>
+          <small>Completed disbursements →</small>
+        </article>
+      </div>
+
+      <div class="grid">
+        <article class="card">
+          <div class="card-title">
+            <div>
+              <p>LATEST ACTIVITY</p>
+              <h2>Recent applications</h2>
+            </div>
+            <a href="#applications" class="view-all-link">View all →</a>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Student</th>
+                  <th>Institute</th>
+                  <th>Scholarship</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="dash-recent-table">
+                <tr><td colspan="5" class="muted-cell">Loading application data…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="card">
+          <p>APPLICATION STATUS</p>
+          <h2>Current application distribution</h2>
+          <div id="dash-status-list"></div>
+          <div class="notice">Applications must be approved before a disbursement can be recorded.</div>
+        </article>
+      </div>
+
+      <!-- Institute Quick Snapshot on Dashboard -->
+      <div class="card mt-18">
+        <div class="card-title">
+          <div>
+            <p>INSTITUTE OVERVIEW</p>
+            <h2>Participating Academic Institutes</h2>
+          </div>
+          <a href="#institutes" class="view-all-link">Full Institute Report →</a>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Institute</th>
+                <th>Enrolled Students</th>
+                <th>Applications</th>
+                <th>Approved</th>
+                <th>Funds Disbursed</th>
+              </tr>
+            </thead>
+            <tbody id="dash-institutes-table">
+              <tr><td colspan="5" class="muted-cell">Loading institutes…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: STUDENTS -->
+    <section id="view-students" class="tab-view">
+      <div class="page-intro">
+        <p>STUDENT DIRECTORY</p>
+        <h2>Registered Students</h2>
+        <small>Students registered with unique 12-digit Aadhaar identification across all institutes.</small>
+      </div>
+
+      <!-- Filter & Action Toolbar -->
+      <div class="toolbar">
+        <div class="toolbar-filters">
+          <input type="text" id="student-search" placeholder="Search student by name, Aadhaar, course…" class="search-input">
+          <select id="student-institute-filter" class="filter-select">
+            <option value="all">All Institutes</option>
+          </select>
+        </div>
+        <button id="toggle-student-form-btn" class="btn btn-primary">+ Register Student</button>
+      </div>
+
+      <!-- Add Student Form Panel -->
+      <div id="student-form-panel" class="form-panel collapsed">
+        <h3>Register New Student</h3>
+        <form id="add-student-form" class="form-grid-5">
+          <input type="text" id="stu-name" placeholder="Full student name" required>
+          <div>
+            <input type="text" id="stu-aadhaar" placeholder="12-digit Aadhaar" pattern="[0-9]{12}" maxlength="12" title="Exactly 12 numeric digits" required>
+            <span class="field-hint" id="aadhaar-counter">0/12</span>
+          </div>
+          <input type="text" id="stu-institute" list="institute-datalist" placeholder="Institute name" required>
+          <datalist id="institute-datalist"></datalist>
+          <input type="text" id="stu-course" placeholder="Course name e.g. B.Tech CSE" required>
+          <input type="number" id="stu-income" min="0" placeholder="Annual income (₹)" required>
+          <button type="submit" class="btn btn-primary" id="save-student-btn">Save Student</button>
+        </form>
+      </div>
+
+      <!-- Students Table -->
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Student Details</th>
+                <th>Aadhaar Number</th>
+                <th>Institute & Course</th>
+                <th>Annual Income</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="students-table-body">
+              <tr><td colspan="6" class="muted-cell">Loading student records…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: SCHOLARSHIPS -->
+    <section id="view-scholarships" class="tab-view">
+      <div class="page-intro">
+        <p>SCHOLARSHIP PROGRAMMES</p>
+        <h2>Available Schemes & Criteria</h2>
+        <small>Institutional and government funding schemes with eligibility standards and award amounts.</small>
+      </div>
+
+      <!-- Add Scholarship Form -->
+      <div class="form-panel">
+        <h3>Create Scholarship Scheme</h3>
+        <form id="add-scholarship-form" class="form-grid-4">
+          <input type="text" id="sc-name" placeholder="Scholarship scheme name" required>
+          <input type="text" id="sc-eligibility" placeholder="Eligibility criteria e.g. Marks > 80%" required>
+          <input type="number" id="sc-amount" min="1" placeholder="Award amount (₹)" required>
+          <input type="date" id="sc-deadline" required title="Application Deadline">
+          <button type="submit" class="btn btn-primary" id="save-scholarship-btn">Create Scheme</button>
+        </form>
+      </div>
+
+      <!-- Scholarships Cards Grid -->
+      <div class="cards-grid" id="scholarships-grid">
+        <div class="muted-cell">Loading scholarships…</div>
+      </div>
+    </section>
+
+    <!-- TAB 4: APPLICATIONS -->
+    <section id="view-applications" class="tab-view">
+      <div class="page-intro">
+        <p>APPLICATION WORKFLOW</p>
+        <h2>Review Submissions & Approvals</h2>
+        <small>Each student may apply to a scholarship once. Review and update application decisions.</small>
+      </div>
+
+      <!-- Application Controls Toolbar -->
+      <div class="toolbar">
+        <div class="toolbar-filters">
+          <select id="app-status-filter" class="filter-select">
+            <option value="all">All Statuses</option>
+            <option value="Pending">Pending</option>
+            <option value="Approved">Approved</option>
+            <option value="Rejected">Rejected</option>
+          </select>
+          <select id="app-institute-filter" class="filter-select">
+            <option value="all">All Institutes</option>
+          </select>
+        </div>
+        <button id="toggle-app-form-btn" class="btn btn-primary">+ Submit Application</button>
+      </div>
+
+      <!-- Submit Application Form Panel -->
+      <div id="app-form-panel" class="form-panel collapsed">
+        <h3>Submit Scholarship Application</h3>
+        <form id="add-application-form" class="form-grid-3">
+          <select id="app-student-select" required>
+            <option value="">Select applicant student…</option>
+          </select>
+          <select id="app-scholarship-select" required>
+            <option value="">Select scholarship scheme…</option>
+          </select>
+          <input type="date" id="app-date" required title="Application date">
+          <button type="submit" class="btn btn-primary" id="save-application-btn">Submit Application</button>
+        </form>
+      </div>
+
+      <!-- Applications Table -->
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>App #</th>
+                <th>Student & Institute</th>
+                <th>Scholarship Scheme</th>
+                <th>Award Amount</th>
+                <th>Apply Date</th>
+                <th>Decision Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="applications-table-body">
+              <tr><td colspan="7" class="muted-cell">Loading applications…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 5: DISBURSEMENTS -->
+    <section id="view-disbursements" class="tab-view">
+      <div class="page-intro">
+        <p>PAYMENT & DISBURSEMENT REGISTER</p>
+        <h2>Disbursement Management</h2>
+        <small>Record and verify official scholarship disbursements for approved student applications.</small>
+      </div>
+
+      <!-- Disbursement Summary Metrics -->
+      <div class="statistics mb-18">
+        <article class="stat-card">
+          <p>Total Disbursed Funds</p>
+          <strong id="disb-total-amount">₹0</strong>
+          <small>Completed disbursements</small>
+        </article>
+        <article class="stat-card">
+          <p>Awaiting Disbursement</p>
+          <strong id="disb-unpaid-count">0</strong>
+          <small>Approved unpaid applications</small>
+        </article>
+        <article class="stat-card">
+          <p>Completed Transactions</p>
+          <strong id="disb-paid-count">0</strong>
+          <small>Verified payments</small>
+        </article>
+      </div>
+
+      <!-- Record Disbursement Form Panel -->
+      <div class="form-panel">
+        <h3>Record Scholarship Payment</h3>
+        <form id="add-disbursement-form" class="form-grid-4">
+          <select id="disb-application-select" required>
+            <option value="">Select approved application…</option>
+          </select>
+          <input type="date" id="disb-date" required title="Payment Date">
+          <select id="disb-status" required>
+            <option value="Paid">Paid</option>
+            <option value="Processing">Processing</option>
+            <option value="Failed">Failed</option>
+          </select>
+          <input type="text" id="disb-ref" placeholder="Transaction Ref e.g. TXN-2026-0005" required>
+          <button type="submit" class="btn btn-primary" id="save-disbursement-btn">Record Payment</button>
+        </form>
+      </div>
+
+      <!-- Disbursements Table -->
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Payment #</th>
+                <th>Recipient Student</th>
+                <th>Institute</th>
+                <th>Scholarship Scheme</th>
+                <th>Amount</th>
+                <th>Payment Date</th>
+                <th>Transaction Reference</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="disbursements-table-body">
+              <tr><td colspan="8" class="muted-cell">Loading disbursements…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 6: INSTITUTES -->
+    <section id="view-institutes" class="tab-view">
+      <div class="page-intro">
+        <p>INSTITUTIONAL PERFORMANCE</p>
+        <h2>Institute Analytics & Student Allocations</h2>
+        <small>Track performance, student enrollment, application decisions, and total awarded funds by academic institution.</small>
+      </div>
+
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Academic Institute</th>
+                <th>Enrolled Students</th>
+                <th>Total Applications</th>
+                <th>Approved</th>
+                <th>Pending</th>
+                <th>Rejected</th>
+                <th>Approval Rate</th>
+                <th>Total Funds Disbursed</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="institutes-table-body">
+              <tr><td colspan="9" class="muted-cell">Loading institute analytics…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Scripts -->
+  <script src="config.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>

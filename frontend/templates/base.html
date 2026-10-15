@@ -10,11 +10,11 @@
     <a class="brand" href="{{ url_for('dashboard') }}"><span>SMS</span> Scholarship<br><em>Management System</em></a>
     <p class="side-label">MAIN MENU</p>
     <nav>
-      <a href="{{ url_for('dashboard') }}"><span>Dashboard</span></a>
-      <a href="{{ url_for('students') }}"><span>Students</span></a>
-      <a href="{{ url_for('scholarships') }}"><span>Scholarships</span></a>
-      <a href="{{ url_for('applications') }}"><span>Applications</span></a>
-      <a href="{{ url_for('disbursements') }}"><span>Disbursements</span></a>
+      <a href="{{ url_for('dashboard') }}" class="{% if active_page == 'dashboard' %}selected{% endif %}"><span>Dashboard</span></a>
+      <a href="{{ url_for('students') }}" class="{% if active_page == 'students' %}selected{% endif %}"><span>Students</span></a>
+      <a href="{{ url_for('scholarships') }}" class="{% if active_page == 'scholarships' %}selected{% endif %}"><span>Scholarships</span></a>
+      <a href="{{ url_for('applications') }}" class="{% if active_page == 'applications' %}selected{% endif %}"><span>Applications</span></a>
+      <a href="{{ url_for('disbursements') }}" class="{% if active_page == 'disbursements' %}selected{% endif %}"><span>Disbursements</span></a>
     </nav>
     <div class="sidebar-note"><b>Academic project</b><br><small>FastAPI · SQLite database</small></div>
   </aside>

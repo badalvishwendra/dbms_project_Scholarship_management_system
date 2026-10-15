@@ -1,4 +1,28 @@
 {% extends 'base.html' %}{% block heading %}Students{% endblock %}{% block content %}
-<section class="page-intro"><div><p class="eyebrow">STUDENT RECORDS</p><h2>Registered students</h2><p>Each Aadhaar number is unique to prevent duplicate profiles.</p></div></section>
-<section class="form-panel"><h3>Add a student</h3><form method="post" class="form-grid"><input name="student_name" placeholder="Student full name" required><input name="aadhaar_no" placeholder="12-digit Aadhaar number" pattern="[0-9]{12}" required><input name="institute" placeholder="Institute name" required><input name="course" placeholder="Course name" required><input name="income" type="number" min="0" placeholder="Annual family income" required><button>Add student</button></form></section>
-<section class="panel"><div class="table-wrap"><table><thead><tr><th>ID</th><th>Student</th><th>Institute & course</th><th>Annual income</th></tr></thead><tbody>{% for s in students %}<tr><td>#{{ s.student_id }}</td><td><b>{{ s.student_name }}</b><br><small>Aadhaar: {{ s.aadhaar_no }}</small></td><td>{{ s.institute }}<br><small>{{ s.course }}</small></td><td>₹{{ '{:,.0f}'.format(s.income) }}</td></tr>{% endfor %}</tbody></table></div></section>{% endblock %}
+<section class="page-intro" style="display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:12px;">
+  <div><p class="eyebrow">STUDENT RECORDS</p><h2>Registered students</h2><p>Each Aadhaar number is unique to prevent duplicate profiles.</p></div>
+  <form method="get" style="display:flex; align-items:center; gap:8px;">
+    <label style="font-size:12px; color:var(--muted); font-weight:bold;">FILTER INSTITUTE:</label>
+    <select name="institute" onchange="this.form.submit()" style="padding:8px 12px; font-size:13px;">
+      <option value="all">All Institutes</option>
+      {% for inst in institutes %}
+      <option value="{{ inst }}" {% if selected_institute == inst %}selected{% endif %}>{{ inst }}</option>
+      {% endfor %}
+    </select>
+  </form>
+</section>
+<section class="form-panel">
+  <h3>Add a student</h3>
+  <form method="post" class="form-grid">
+    <input name="student_name" placeholder="Student full name" required>
+    <input name="aadhaar_no" placeholder="12-digit Aadhaar number" pattern="[0-9]{12}" maxlength="12" title="12 numeric digits" required>
+    <input name="institute" list="institute-list" placeholder="Institute name" required>
+    <datalist id="institute-list">
+      {% for inst in institutes %}<option value="{{ inst }}">{% endfor %}
+    </datalist>
+    <input name="course" placeholder="Course name" required>
+    <input name="income" type="number" min="0" placeholder="Annual family income (₹)" required>
+    <button>Add student</button>
+  </form>
+</section>
+<section class="panel"><div class="table-wrap"><table><thead><tr><th>ID</th><th>Student</th><th>Institute & course</th><th>Annual income</th></tr></thead><tbody>{% for s in students %}<tr><td>#{{ s.student_id }}</td><td><b>{{ s.student_name }}</b><br><small>Aadhaar: {{ s.aadhaar_no }}</small></td><td>{{ s.institute }}<br><small>{{ s.course }}</small></td><td>₹{{ '{:,.0f}'.format(s.income) }}</td></tr>{% else %}<tr><td colspan="4" style="text-align:center; color:var(--muted); padding:24px;">No students registered for the selected institute.</td></tr>{% endfor %}</tbody></table></div></section>{% endblock %}
