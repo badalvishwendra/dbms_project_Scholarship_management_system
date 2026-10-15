@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Scholarship Management System dashboard">
+  <title>Scholarship Management System</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <aside><div class="brand"><b>SMS</b> Scholarship<br><span>Management System</span></div><p>MAIN MENU</p><nav><a class="selected">Dashboard</a><a href="#students">Students</a><a href="#scholarships">Scholarships</a><a href="#applications">Applications</a><a href="#payments">Disbursements</a></nav><footer>Academic Project<br><small>Flask · SQLite database</small></footer></aside>
+  <main>
+    <header><div><p>ADMINISTRATION PANEL</p><h1>Overview</h1></div><span>Administrator</span></header>
+    <section class="summary"><div><p>SYSTEM OVERVIEW</p><h2>Scholarship administration summary</h2><small>Monitor student records, applications, approvals and payment information from a single place.</small></div><div class="api-status" id="api-status">Connecting to service…</div></section>
+    <section class="statistics"><article><p>Total students</p><strong id="students">—</strong><small>Registered applicants</small></article><article><p>Scholarships</p><strong id="scholarships">—</strong><small>Available schemes</small></article><article><p>Applications</p><strong id="applications">—</strong><small>Submitted records</small></article><article><p>Payments recorded</p><strong id="paid">—</strong><small>Completed disbursements</small></article></section>
+    <section class="grid"><article class="card"><div class="card-title"><div><p>LATEST ACTIVITY</p><h2>Recent applications</h2></div><a href="https://github.com/badalvishwendra/dbms_project_cholarship_management_system">Source code</a></div><div class="table-wrap"><table><thead><tr><th>Student</th><th>Scholarship</th><th>Amount</th><th>Status</th></tr></thead><tbody id="recent"><tr><td colspan="4">Loading application data…</td></tr></tbody></table></div></article><article class="card"><p>APPLICATION STATUS</p><h2>Current application distribution</h2><div id="status-list"></div><div class="notice">Applications must be approved before a disbursement can be recorded.</div></article></section>
+  </main><script src="config.js"></script><script src="app.js"></script>
+</body>
+</html>

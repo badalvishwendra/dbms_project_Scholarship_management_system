@@ -4,7 +4,7 @@ The routes intentionally use straightforward SQL so the project is easy to
 demonstrate in a DBMS viva.
 """
 from pathlib import Path
-from flask import Flask, flash, redirect, render_template, request, url_for
+from flask import Flask, flash, jsonify, redirect, render_template, request, url_for
 from backend.database import close_db, get_db, initialise_database
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -18,6 +18,12 @@ def create_app():
     )
     app.config["SECRET_KEY"] = "college-project-demo-key"
     app.teardown_appcontext(close_db)
+
+    @app.after_request
+    def add_cors_headers(response):
+        """Allow the separately hosted Vercel dashboard to request API data."""
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        return response
     with app.app_context():
         initialise_database()
 
@@ -41,6 +47,25 @@ def create_app():
         """).fetchall()
         status_counts = db.execute("SELECT status, COUNT(*) AS total FROM applications GROUP BY status").fetchall()
         return render_template("dashboard.html", totals=totals, recent=recent, status_counts=status_counts)
+
+    @app.get("/api/dashboard")
+    def dashboard_api():
+        """JSON summary consumed by the static Vercel dashboard."""
+        db = get_db()
+        totals = db.execute("""
+            SELECT (SELECT COUNT(*) FROM students) AS students,
+                   (SELECT COUNT(*) FROM scholarships) AS scholarships,
+                   (SELECT COUNT(*) FROM applications) AS applications,
+                   (SELECT COUNT(*) FROM disbursements WHERE status = 'Paid') AS paid
+        """).fetchone()
+        recent = db.execute("""
+            SELECT s.student_name, sc.scholarship_name, sc.amount, a.status, a.apply_date
+            FROM applications a JOIN students s ON s.student_id = a.student_id
+            JOIN scholarships sc ON sc.scholarship_id = a.scholarship_id
+            ORDER BY a.apply_date DESC, a.application_id DESC LIMIT 6
+        """).fetchall()
+        status_counts = db.execute("SELECT status, COUNT(*) AS total FROM applications GROUP BY status").fetchall()
+        return jsonify(totals=dict(totals), recent=[dict(row) for row in recent], status_counts=[dict(row) for row in status_counts])
 
     @app.route("/students", methods=["GET", "POST"])
     def students():
