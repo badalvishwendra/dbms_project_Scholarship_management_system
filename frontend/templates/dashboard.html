@@ -1,0 +1,12 @@
+{% extends 'base.html' %}{% block heading %}Overview{% endblock %}{% block content %}
+<section class="welcome"><div><p class="eyebrow">WELCOME BACK, ADMIN</p><h2>Making education more accessible.</h2><p>Track every scholarship, application and payment from one simple dashboard.</p></div><div class="welcome-icon">🎓</div></section>
+<section class="stats">
+  <article class="stat"><span>👩‍🎓</span><p>Total Students</p><strong>{{ totals.students }}</strong><small>Registered applicants</small></article>
+  <article class="stat"><span>◈</span><p>Scholarships</p><strong>{{ totals.scholarships }}</strong><small>Available programmes</small></article>
+  <article class="stat"><span>▤</span><p>Applications</p><strong>{{ totals.applications }}</strong><small>All submissions</small></article>
+  <article class="stat"><span>₹</span><p>Payments Made</p><strong>{{ totals.paid }}</strong><small>Successful disbursements</small></article>
+</section>
+<section class="two-col"><article class="panel"><div class="panel-top"><div><p class="eyebrow">LATEST ACTIVITY</p><h2>Recent applications</h2></div><a href="{{ url_for('applications') }}">View all →</a></div>
+<div class="table-wrap"><table><thead><tr><th>Student</th><th>Scholarship</th><th>Amount</th><th>Status</th></tr></thead><tbody>{% for app in recent %}<tr><td><b>{{ app.student_name }}</b><br><small>{{ app.apply_date }}</small></td><td>{{ app.scholarship_name }}</td><td>₹{{ '{:,.0f}'.format(app.amount) }}</td><td><span class="badge {{ app.status|lower }}">{{ app.status }}</span></td></tr>{% endfor %}</tbody></table></div></article>
+<article class="panel progress"><p class="eyebrow">APPLICATIONS</p><h2>Status at a glance</h2>{% for item in status_counts %}<div class="progress-row"><div><span>{{ item.status }}</span><b>{{ item.total }}</b></div><div class="bar"><i class="{{ item.status|lower }}" style="width: {{ (item.total / totals.applications * 100) if totals.applications else 0 }}%"></i></div></div>{% endfor %}<p class="tip">Tip: approve eligible applications before recording a payment.</p></article></section>
+{% endblock %}
