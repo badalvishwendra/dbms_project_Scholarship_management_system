@@ -167,10 +167,12 @@ def disbursements(request: Request):
 @fastapi_app.post("/disbursements")
 def add_disbursement(application_id: int = Form(), payment_date: str = Form(), transaction_ref: str = Form()):
     with closing(get_db()) as db:
+        app_row = db.execute("SELECT status FROM applications WHERE application_id = ?", (application_id,)).fetchone()
+        if not app_row or app_row["status"] != "Approved":
+            return RedirectResponse("/disbursements", status_code=303)
         try:
             db.execute("INSERT INTO disbursements (application_id,payment_date,status,transaction_ref) VALUES (?,?,'Paid',?)",
                        (application_id, payment_date.strip(), transaction_ref.strip()))
-            db.execute("UPDATE applications SET status='Approved' WHERE application_id=?", (application_id,))
             db.commit()
         except sqlite3.IntegrityError:
             pass
@@ -431,6 +433,11 @@ async def api_add_disbursement(request: Request):
         app_row = db.execute("SELECT status FROM applications WHERE application_id = ?", (application_id,)).fetchone()
         if not app_row:
             raise HTTPException(status_code=404, detail="Selected application does not exist.")
+        if app_row["status"] != "Approved":
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot disburse funds: Application #{application_id} has decision status '{app_row['status']}'. Only 'Approved' applications are eligible for disbursement."
+            )
         existing_disb = db.execute("SELECT disbursement_id FROM disbursements WHERE application_id = ?", (application_id,)).fetchone()
         if existing_disb:
             raise HTTPException(status_code=400, detail="A disbursement payment has already been recorded for this application.")
