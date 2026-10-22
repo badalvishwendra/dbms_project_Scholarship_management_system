@@ -1,10 +1,10 @@
-"""Integration and route tests for FastAPI backend."""
+"""Integration and route tests for FastAPI backend with SQLite."""
 from unittest.mock import MagicMock, patch
 
 from fastapi.testclient import TestClient
 
 from backend.app import fastapi_app
-from backend.database import Row
+from backend.database import Row, initialise_database
 
 client = TestClient(fastapi_app)
 
@@ -88,3 +88,75 @@ def test_api_scholarships():
         data = response.json()
         assert len(data["scholarships"]) == 1
         assert data["scholarships"][0]["scholarship_name"] == "Merit Excellence"
+
+
+def test_live_sqlite_integration(tmp_path, monkeypatch):
+    """End-to-end integration test against a live SQLite database."""
+    live_db = tmp_path / "integration_test.db"
+    monkeypatch.setenv("DATABASE_PATH", str(live_db))
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.delenv("SQLITE_PATH", raising=False)
+
+    initialise_database(live_db)
+
+    # 1. Check dashboard API returns seeded counts
+    resp = client.get("/api/dashboard")
+    assert resp.status_code == 200
+    dashboard = resp.json()
+    assert dashboard["totals"]["students"] == 3
+    assert dashboard["totals"]["scholarships"] == 3
+    assert dashboard["totals"]["applications"] == 3
+    assert dashboard["totals"]["paid"] == 1
+
+    # 2. Add a new student via API
+    student_payload = {
+        "student_name": "Rohan Gupta",
+        "aadhaar_no": "999988887777",
+        "institute": "IIT Delhi",
+        "course": "Computer Science",
+        "income": 250000,
+    }
+    resp = client.post("/api/students", json=student_payload)
+    assert resp.status_code == 200
+    new_student_id = resp.json()["student_id"]
+    assert new_student_id > 0
+
+    # 3. Add an application for this student to Scholarship 2
+    app_payload = {
+        "student_id": new_student_id,
+        "scholarship_id": 2,
+        "apply_date": "2026-10-22",
+    }
+    resp = client.post("/api/applications", json=app_payload)
+    assert resp.status_code == 200
+    new_app_id = resp.json()["application_id"]
+
+    # 4. Approve the application
+    resp = client.post(f"/api/applications/{new_app_id}/status", json={"status": "Approved"})
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "Approved"
+
+    # 5. Record disbursement for this approved application
+    disb_payload = {
+        "application_id": new_app_id,
+        "payment_date": "2026-10-22",
+        "status": "Paid",
+        "transaction_ref": "TXN-TEST-9999",
+    }
+    resp = client.post("/api/disbursements", json=disb_payload)
+    assert resp.status_code == 200
+    assert resp.json()["success"] is True
+
+    # 6. Verify institute statistics endpoint
+    resp = client.get("/api/institutes")
+    assert resp.status_code == 200
+    institutes = resp.json()["institutes"]
+    inst_names = [i["institute"] for i in institutes]
+    assert "IIT Delhi" in inst_names
+
+    # 7. Check server-rendered HTML pages render successfully
+    assert client.get("/").status_code == 200
+    assert client.get("/students").status_code == 200
+    assert client.get("/scholarships").status_code == 200
+    assert client.get("/applications").status_code == 200
+    assert client.get("/disbursements").status_code == 200

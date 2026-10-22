@@ -65,11 +65,11 @@ erDiagram
 ## 3. Database Constraints & Integrity Rules
 
 1. **Entity Integrity**:
-   - Every primary key (`student_id`, `scholarship_id`, `application_id`, `disbursement_id`) is strictly non-null and automatically incremented.
+   - Every primary key (`student_id`, `scholarship_id`, `application_id`, `disbursement_id`) is strictly non-null and automatically incremented (`AUTOINCREMENT`).
 2. **Referential Integrity**:
-   - Enforced via MySQL foreign keys with `ENGINE=InnoDB` (`ON DELETE RESTRICT ON UPDATE CASCADE`). An application cannot reference a non-existent student or scholarship. A disbursement cannot reference a non-existent application.
+   - Enforced via SQLite foreign keys (`PRAGMA foreign_keys = ON`) with `ON DELETE RESTRICT ON UPDATE CASCADE`. An application cannot reference a non-existent student or scholarship. A disbursement cannot reference a non-existent application.
 3. **Domain Constraints**:
-   - `CHECK(CHAR_LENGTH(aadhaar_no) = 12)`: Ensures national identification numbers strictly adhere to the 12-digit specification.
+   - `CHECK(length(aadhaar_no) = 12)`: Ensures national identification numbers strictly adhere to the 12-digit specification.
    - `CHECK(income >= 0)`: Ensures family income cannot be negative.
    - `CHECK(amount > 0)`: Scholarship award must be a positive monetary figure.
    - `CHECK(status IN ('Pending', 'Approved', 'Rejected'))`: Enforces a finite-state machine for application decisions.
@@ -79,7 +79,7 @@ erDiagram
    - `UNIQUE(student_id, scholarship_id)`: Prevents repeated applications for the same scheme by the same student.
    - `transaction_ref UNIQUE`: Prevents reconciliation errors and double payments.
 5. **SQL Injection Defense**:
-   - All backend queries strictly utilize parameterized queries with parameterized placeholders in PyMySQL rather than string concatenation.
+   - All backend queries strictly utilize parameterized queries (`?` place-holders) in SQLite rather than string concatenation.
 
 ---
 
@@ -138,12 +138,12 @@ ORDER BY a.application_id DESC;
 ## 6. Technical Stack & Deployment
 
 - **Backend**: FastAPI (Python 3.11+) with ASGI/WSGI Universal compatibility (`a2wsgi`).
-- **Database Engine**: MySQL 8.0+ / MariaDB with `InnoDB` storage engine, ACID transaction guarantees, and foreign key cascades.
-- **Database Driver**: PyMySQL with `cryptography` authentication and `python-dotenv`.
+- **Database Engine**: SQLite 3 with WAL mode, foreign keys enabled (`PRAGMA foreign_keys = ON`).
+- **Database Driver**: Python standard library `sqlite3` with custom `Row` dictionary and attribute wrapper.
 - **Frontend 1 (Vercel)**: Vanilla JS, CSS3, Single Page Application with asynchronous REST communication.
 - **Frontend 2 (Render / Local)**: Jinja2 server-rendered templates for administrative controls.
 - **Hosting Platforms**:
-  - Render / Railway: Hosts the FastAPI Python backend service and connects to managed MySQL.
+  - Render: Hosts the FastAPI Python backend service.
   - Vercel: Hosts the static frontend dashboard with instant CDN distribution.
 
 ---
@@ -156,8 +156,8 @@ ORDER BY a.application_id DESC;
 **Q2: How does the system prevent a student from applying twice to the same scholarship?**  
 *Answer:* "We enforce a composite unique constraint in the `applications` table: `UNIQUE(student_id, scholarship_id)`. Any attempt to insert a second application for the same combination will trigger an integrity constraint error, which is caught gracefully."
 
-**Q3: How are foreign keys and ACID transactions enforced in MySQL?**  
-*Answer:* "In MySQL, all tables use the `InnoDB` storage engine (`ENGINE=InnoDB`). InnoDB natively provides full ACID compliance (Atomicity, Consistency, Isolation, Durability) and strictly validates foreign key constraints (`ON DELETE RESTRICT ON UPDATE CASCADE`) to maintain referential integrity."
+**Q3: How are foreign keys and ACID transactions enforced in SQLite?**  
+*Answer:* "By default, SQLite disables foreign key enforcement for backward compatibility. In our connection utility (`backend/database.py`), we explicitly execute `PRAGMA foreign_keys = ON` on every connection. SQLite provides atomic transactions with write-ahead logging (WAL) mode for concurrency."
 
 **Q4: Can a disbursement exist without an approved application?**  
 *Answer:* "No. First, `disbursements.application_id` is a foreign key pointing to `applications.application_id`. Second, our business logic and queries only permit disbursement creation when `applications.status = 'Approved'` and enforce that an application cannot be paid more than once via `UNIQUE(application_id)`."

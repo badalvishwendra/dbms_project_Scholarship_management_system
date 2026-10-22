@@ -16,7 +16,7 @@
       <a href="{{ url_for('applications') }}" class="{% if active_page == 'applications' %}selected{% endif %}"><span>Applications</span></a>
       <a href="{{ url_for('disbursements') }}" class="{% if active_page == 'disbursements' %}selected{% endif %}"><span>Disbursements</span></a>
     </nav>
-    <div class="sidebar-note"><b>Academic project</b><br><small>FastAPI · MySQL database</small></div>
+    <div class="sidebar-note"><b>Academic project</b><br><small>FastAPI · SQLite database</small></div>
   </aside>
   <main>
     <header><div><p class="eyebrow">ADMINISTRATION PANEL</p><h1>{% block heading %}Dashboard{% endblock %}</h1></div><div class="admin-label">Administrator</div></header>

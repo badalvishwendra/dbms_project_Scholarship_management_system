@@ -1,24 +1,28 @@
-"""MySQL database utilities shared by the FastAPI routes."""
+"""SQLite database utilities shared by the FastAPI routes."""
 import decimal
 import os
 from contextlib import closing
 from datetime import date, datetime
 from pathlib import Path
+import sqlite3
 from typing import Any, Dict, List, Optional, Tuple, Union
-from urllib.parse import unquote, urlparse
+from urllib.parse import urlparse
 
-import pymysql
-from pymysql.err import (
+# Re-export standard SQLite exceptions
+from sqlite3 import (
     DatabaseError,
     DataError,
+    Error,
     IntegrityError,
     InterfaceError,
     InternalError,
-    MySQLError,
     NotSupportedError,
     OperationalError,
     ProgrammingError,
 )
+
+# Backward-compatibility alias
+MySQLError = DatabaseError
 
 # Load environment variables from .env if python-dotenv is available
 ROOT = Path(__file__).resolve().parent.parent
@@ -29,8 +33,41 @@ try:
 except ImportError:
     pass
 
+DEFAULT_DATABASE_PATH = ROOT / "storage" / "scholarships.db"
 SCHEMA_PATH = ROOT / "db" / "schema.sql"
 SEED_PATH = ROOT / "db" / "seed.sql"
+
+
+def get_db_path() -> Path:
+    """Resolve the SQLite database file path from environment variables or default."""
+    raw_path = os.environ.get("DATABASE_PATH") or os.environ.get("SQLITE_PATH")
+    if not raw_path:
+        db_url = os.environ.get("DATABASE_URL")
+        if db_url:
+            if db_url.startswith("sqlite:////"):
+                raw_path = "/" + db_url[11:]
+            elif db_url.startswith("sqlite:///"):
+                raw_path = db_url[10:]
+            elif db_url.startswith("sqlite://"):
+                raw_path = db_url[9:]
+
+    if raw_path:
+        if raw_path == ":memory:":
+            return Path(":memory:")
+        custom_path = Path(raw_path)
+        return custom_path if custom_path.is_absolute() else (ROOT / custom_path)
+
+    return DEFAULT_DATABASE_PATH
+
+
+def get_db_config() -> Dict[str, Any]:
+    """Return database configuration details for introspection and diagnostics."""
+    path = get_db_path()
+    return {
+        "engine": "sqlite",
+        "database": str(path),
+        "is_memory": str(path) == ":memory:",
+    }
 
 
 def _convert_val(val: Any) -> Any:
@@ -73,219 +110,85 @@ class Row(dict):
         return [(k, self[k]) for k in self._keys]
 
 
-def _normalize_sql(sql: str) -> str:
-    """Convert '?' parameter placeholders to '%s' for MySQL compatibility, respecting string literals."""
-    in_single = False
-    in_double = False
-    result = []
-    for ch in sql:
-        if ch == "'" and not in_double:
-            in_single = not in_single
-            result.append(ch)
-        elif ch == '"' and not in_single:
-            in_double = not in_double
-            result.append(ch)
-        elif ch == "?" and not in_single and not in_double:
-            result.append("%s")
-        else:
-            result.append(ch)
-    return "".join(result)
+def row_factory(cursor: sqlite3.Cursor, row: Tuple) -> Row:
+    """SQLite row factory producing dictionary-like Row objects with attribute access."""
+    col_names = [desc[0] for desc in cursor.description]
+    return Row(col_names, row)
 
 
-class CursorWrapper:
-    """Wraps a PyMySQL cursor to return Row objects and provide lastrowid/rowcount."""
+def get_db(db_path: Optional[Union[str, Path]] = None) -> sqlite3.Connection:
+    """Open a short-lived SQLite connection with foreign keys enabled."""
+    if db_path is None:
+        target_path = get_db_path()
+    elif isinstance(db_path, str) and db_path != ":memory:":
+        target_path = Path(db_path) if Path(db_path).is_absolute() else (ROOT / db_path)
+    else:
+        target_path = db_path
 
-    def __init__(self, cursor: pymysql.cursors.Cursor):
-        self._cursor = cursor
-        self.lastrowid = None
-        self.rowcount = -1
+    is_memory = str(target_path) == ":memory:"
 
-    def execute(self, query: str, params: Optional[Union[tuple, list, dict]] = None):
-        norm_query = _normalize_sql(query)
-        self._cursor.execute(norm_query, params)
-        self.lastrowid = self._cursor.lastrowid
-        self.rowcount = self._cursor.rowcount
-        return self
+    if not is_memory and isinstance(target_path, Path):
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        conn = sqlite3.connect(str(target_path), timeout=30.0, check_same_thread=False)
+        try:
+            conn.execute("PRAGMA journal_mode = WAL;")
+        except sqlite3.Error:
+            pass
+    else:
+        conn = sqlite3.connect(":memory:", timeout=30.0, check_same_thread=False)
 
-    def fetchone(self) -> Optional[Row]:
-        row = self._cursor.fetchone()
-        if row is None:
-            return None
-        col_names = [desc[0] for desc in self._cursor.description]
-        return Row(col_names, row)
-
-    def fetchall(self) -> List[Row]:
-        rows = self._cursor.fetchall()
-        if not rows:
-            return []
-        col_names = [desc[0] for desc in self._cursor.description]
-        return [Row(col_names, r) for r in rows]
-
-    def close(self):
-        self._cursor.close()
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.close()
+    conn.row_factory = row_factory
+    conn.execute("PRAGMA foreign_keys = ON;")
+    return conn
 
 
-class DatabaseConnection:
-    """High-level MySQL connection supporting execute(), commit(), executescript(), and close()."""
-
-    def __init__(self, raw_conn: pymysql.Connection):
-        self._conn = raw_conn
-
-    def execute(self, query: str, params: Optional[Union[tuple, list, dict]] = None) -> CursorWrapper:
-        cursor = self._conn.cursor()
-        wrapper = CursorWrapper(cursor)
-        wrapper.execute(query, params)
-        return wrapper
-
-    def commit(self) -> None:
-        self._conn.commit()
-
-    def rollback(self) -> None:
-        self._conn.rollback()
-
-    def close(self) -> None:
-        self._conn.close()
-
-    def executescript(self, script_text: str) -> None:
-        """Execute multiple SQL statements separated by semicolons."""
-        statements = []
-        stmt_buf = []
-        in_single = False
-        in_double = False
-
-        for line in script_text.splitlines():
-            line_str = line.strip()
-            if line_str.startswith("--") or line_str.startswith("#"):
-                continue
-            for ch in line:
-                if ch == "'" and not in_double:
-                    in_single = not in_single
-                elif ch == '"' and not in_single:
-                    in_double = not in_double
-                elif ch == ";" and not in_single and not in_double:
-                    statements.append("".join(stmt_buf).strip())
-                    stmt_buf = []
-                    continue
-                stmt_buf.append(ch)
-            stmt_buf.append("\n")
-
-        remainder = "".join(stmt_buf).strip()
-        if remainder:
-            statements.append(remainder)
-
-        with self._conn.cursor() as cur:
-            for stmt in statements:
-                if stmt:
-                    cur.execute(stmt)
-        self._conn.commit()
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.close()
-
-
-def get_db_config(include_db: bool = True) -> Dict[str, Any]:
-    """Parse connection configuration from environment variables or DATABASE_URL."""
-    db_url = os.environ.get("DATABASE_URL") or os.environ.get("MYSQL_URL")
-    if db_url and db_url.startswith(("mysql://", "mysql+pymysql://")):
-        url = urlparse(db_url)
-        config = {
-            "host": url.hostname or "localhost",
-            "port": url.port or 3306,
-            "user": unquote(url.username or "root"),
-            "password": unquote(url.password or ""),
-            "charset": "utf8mb4",
-            "autocommit": False,
-        }
-        if include_db:
-            db_name = url.path.lstrip("/") or "scholarship_db"
-            config["database"] = db_name
-        return config
-
-    config = {
-        "host": os.environ.get("MYSQL_HOST", "localhost"),
-        "port": int(os.environ.get("MYSQL_PORT", 3306)),
-        "user": os.environ.get("MYSQL_USER", "root"),
-        "password": os.environ.get("MYSQL_PASSWORD", ""),
-        "charset": "utf8mb4",
-        "autocommit": False,
-    }
-    if include_db:
-        config["database"] = os.environ.get("MYSQL_DATABASE", "scholarship_db")
-    return config
-
-
-def get_db() -> DatabaseConnection:
-    """Open a short-lived MySQL connection."""
-    config = get_db_config(include_db=True)
+def initialise_database(db_path: Optional[Union[str, Path]] = None) -> None:
+    """Create schema and demonstration records on first startup if tables are empty."""
+    conn = get_db(db_path)
     try:
-        raw_conn = pymysql.connect(**config)
-        return DatabaseConnection(raw_conn)
-    except pymysql.err.OperationalError as err:
-        # If database doesn't exist (error 1049: Unknown database), attempt initialization
-        if err.args and err.args[0] == 1049:
-            initialise_database()
-            raw_conn = pymysql.connect(**config)
-            return DatabaseConnection(raw_conn)
-        raise RuntimeError(
-            f"Failed to connect to MySQL database '{config.get('database')}' at "
-            f"{config.get('host')}:{config.get('port')} with user '{config.get('user')}'.\n"
-            f"Error: {err}\n"
-            f"Please verify your credentials in your .env file or environment variables."
-        ) from err
-
-
-def initialise_database() -> None:
-    """Create database if not exists, create schema and demonstration records."""
-    db_name = os.environ.get("MYSQL_DATABASE", "scholarship_db")
-    db_url = os.environ.get("DATABASE_URL") or os.environ.get("MYSQL_URL")
-    if db_url and db_url.startswith(("mysql://", "mysql+pymysql://")):
-        parsed = urlparse(db_url).path.lstrip("/")
-        if parsed:
-            db_name = parsed
-
-    # Step 1: Connect to server without specifying database to create database if not exists
-    server_config = get_db_config(include_db=False)
-    try:
-        with pymysql.connect(**server_config) as s_conn:
-            with s_conn.cursor() as cur:
-                cur.execute(
-                    f"CREATE DATABASE IF NOT EXISTS `{db_name}` "
-                    f"CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-                )
-            s_conn.commit()
-    except Exception:
-        # If user does not have CREATE DATABASE permissions (e.g. cloud host), continue
-        pass
-
-    # Step 2: Connect to the database and initialize tables
-    db_config = get_db_config(include_db=True)
-    with pymysql.connect(**db_config) as conn:
-        db = DatabaseConnection(conn)
-        db.executescript(SCHEMA_PATH.read_text(encoding="utf-8"))
-        count_cursor = db.execute("SELECT COUNT(*) FROM students")
+        conn.executescript(SCHEMA_PATH.read_text(encoding="utf-8"))
+        count_cursor = conn.execute("SELECT COUNT(*) FROM students")
         row = count_cursor.fetchone()
         if row and row[0] == 0:
-            db.executescript(SEED_PATH.read_text(encoding="utf-8"))
-        db.commit()
+            conn.executescript(SEED_PATH.read_text(encoding="utf-8"))
+        conn.commit()
+    finally:
+        conn.close()
 
 
-def reset_database() -> None:
-    """Drop tables and recreate schema with seed data."""
-    with closing(get_db()) as db:
-        db.execute("SET FOREIGN_KEY_CHECKS = 0;")
-        db.execute("DROP TABLE IF EXISTS disbursements;")
-        db.execute("DROP TABLE IF EXISTS applications;")
-        db.execute("DROP TABLE IF EXISTS scholarships;")
-        db.execute("DROP TABLE IF EXISTS students;")
-        db.execute("SET FOREIGN_KEY_CHECKS = 1;")
-        db.commit()
-    initialise_database()
+def reset_database(db_path: Optional[Union[str, Path]] = None) -> None:
+    """Drop tables or reset the database file and recreate schema with seed data."""
+    if db_path is None:
+        target = get_db_path()
+    elif isinstance(db_path, str) and db_path != ":memory:":
+        target = Path(db_path) if Path(db_path).is_absolute() else (ROOT / db_path)
+    else:
+        target = db_path
+
+    is_memory = str(target) == ":memory:"
+
+    if not is_memory and isinstance(target, Path) and target.exists():
+        try:
+            target.unlink()
+            wal = Path(str(target) + "-wal")
+            shm = Path(str(target) + "-shm")
+            if wal.exists():
+                wal.unlink(missing_ok=True)
+            if shm.exists():
+                shm.unlink(missing_ok=True)
+        except Exception:
+            pass
+
+    conn = get_db(target)
+    try:
+        conn.execute("PRAGMA foreign_keys = OFF;")
+        conn.execute("DROP TABLE IF EXISTS disbursements;")
+        conn.execute("DROP TABLE IF EXISTS applications;")
+        conn.execute("DROP TABLE IF EXISTS scholarships;")
+        conn.execute("DROP TABLE IF EXISTS students;")
+        conn.execute("PRAGMA foreign_keys = ON;")
+        conn.commit()
+    finally:
+        conn.close()
+
+    initialise_database(target)

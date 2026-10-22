@@ -31,7 +31,7 @@ def startup() -> None:
     try:
         initialise_database()
     except Exception as exc:
-        logging.getLogger("uvicorn.error").warning("MySQL startup initialization deferred: %s", exc)
+        logging.getLogger("uvicorn.error").warning("SQLite startup initialization deferred: %s", exc)
 
 
 def page(request: Request, name: str, **context):
@@ -502,7 +502,7 @@ class UniversalApp:
         try:
             initialise_database()
         except Exception as exc:
-            logging.getLogger("uvicorn.error").warning("MySQL auto-initialization deferred on app creation: %s", exc)
+            logging.getLogger("uvicorn.error").warning("SQLite auto-initialization deferred on app creation: %s", exc)
 
     @property
     def wsgi_app(self):

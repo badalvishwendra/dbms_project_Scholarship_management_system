@@ -1,4 +1,4 @@
-"""Reset MySQL database tables and re-populate demonstration records."""
+"""Reset SQLite database tables and re-populate demonstration records."""
 import sys
 from pathlib import Path
 
@@ -9,7 +9,7 @@ sys.path.insert(0, str(ROOT))
 from backend.database import reset_database
 
 if __name__ == "__main__":
-    print("Resetting Scholarship Management System MySQL database...")
+    print("Resetting Scholarship Management System SQLite database...")
     try:
         reset_database()
         print("Database reset successfully with fresh demo records.")
